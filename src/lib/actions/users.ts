@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
-import { isAdmin, getUser } from './auth'
+import { getUser } from './auth'
 import type { Profile, UserRole } from '@/lib/database.types'
 
 // Type for user listing with status
@@ -33,39 +33,10 @@ export async function getProfiles(): Promise<Profile[]> {
 }
 
 /**
- * Update a user's role (admin only)
- */
-export async function updateUserRole(userId: string, role: 'admin' | 'contributor') {
-  const admin = await isAdmin()
-  if (!admin) {
-    return { error: 'Only admins can update roles' }
-  }
-
-  const supabase = await createClient()
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('profiles') as any)
-    .update({ role })
-    .eq('id', userId)
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/dashboard/settings')
-  return { success: true }
-}
-
-/**
- * Invite a new user via email (admin only)
+ * Invite a new user via email
  * Uses Supabase Admin API to send proper invitation with password setup
  */
 export async function inviteUser(email: string) {
-  const admin = await isAdmin()
-  if (!admin) {
-    return { error: 'Only admins can invite users' }
-  }
-
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email)) {
@@ -179,15 +150,10 @@ export async function getUsersWithStatus(): Promise<{ data: UserWithStatus[] | n
 }
 
 /**
- * Delete a user (admin only)
+ * Delete a user
  * Removes from auth (cascades to profiles via FK)
  */
 export async function deleteUser(userId: string) {
-  const admin = await isAdmin()
-  if (!admin) {
-    return { error: 'Only admins can delete users' }
-  }
-
   // Prevent self-deletion
   const currentUser = await getUser()
   if (currentUser?.id === userId) {
@@ -219,31 +185,3 @@ export async function deleteUser(userId: string) {
   return { success: true }
 }
 
-/**
- * Resend invitation email (admin only)
- * CRITICAL: Must include redirectTo for password setup
- */
-export async function resendInvitation(email: string) {
-  const admin = await isAdmin()
-  if (!admin) {
-    return { error: 'Only admins can resend invitations' }
-  }
-
-  const headersList = await headers()
-  const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || ''
-
-  const supabaseAdmin = createAdminClient()
-
-  // Resend the invitation with the correct redirect
-  // Use dedicated invite callback route (avoids URL encoding issues with query params)
-  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/auth/callback/invite`,
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/dashboard/settings')
-  return { success: true }
-}

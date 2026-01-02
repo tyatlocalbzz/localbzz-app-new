@@ -1,18 +1,17 @@
 import { getTemplatesByType } from '@/lib/actions/templates'
 import { getUsersWithStatus } from '@/lib/actions/users'
-import { getProfile, isAdmin } from '@/lib/actions/auth'
+import { getProfile } from '@/lib/actions/auth'
 import { TaskTemplatesEditor } from '@/components/settings/task-templates-editor'
 import { TeamManagement } from '@/components/settings/team-management'
 import { ClientImport } from '@/components/settings/client-import'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default async function SettingsPage() {
-  const [cycleTemplates, shootTemplates, usersResult, currentProfile, userIsAdmin] = await Promise.all([
+  const [cycleTemplates, shootTemplates, usersResult, currentProfile] = await Promise.all([
     getTemplatesByType('cycle'),
     getTemplatesByType('shoot'),
     getUsersWithStatus(),
     getProfile(),
-    isAdmin(),
   ])
 
   const users = usersResult.data || []
@@ -27,7 +26,6 @@ export default async function SettingsPage() {
           <TeamManagement
             users={users}
             currentUserId={currentProfile?.id || ''}
-            isAdmin={userIsAdmin}
           />
         </section>
 
@@ -60,12 +58,10 @@ export default async function SettingsPage() {
           </Tabs>
         </section>
 
-        {/* Client Import Section - Admin only */}
-        {userIsAdmin && (
-          <section>
-            <ClientImport />
-          </section>
-        )}
+        {/* Client Import Section */}
+        <section>
+          <ClientImport />
+        </section>
       </div>
     </div>
   )
