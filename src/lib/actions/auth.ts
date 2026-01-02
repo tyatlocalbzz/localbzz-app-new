@@ -76,3 +76,36 @@ export async function isAdmin() {
   const profile = await getProfile()
   return profile?.role === 'admin'
 }
+
+/**
+ * Set password for invited users
+ * Used after clicking the invitation link
+ */
+export async function setPassword(prevState: unknown, formData: FormData) {
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  // Validation
+  if (!password || password.length < 6) {
+    return { error: 'Password must be at least 6 characters.' }
+  }
+
+  if (password !== confirmPassword) {
+    return { error: 'Passwords do not match.' }
+  }
+
+  const supabase = await createClient()
+
+  // Update the user's password
+  const { error } = await supabase.auth.updateUser({
+    password: password,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  // Success: Redirect to dashboard
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
+}

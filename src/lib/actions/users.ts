@@ -1,7 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { isAdmin } from './auth'
 import type { Profile } from '@/lib/database.types'
 
@@ -46,7 +48,7 @@ export async function updateUserRole(userId: string, role: 'admin' | 'contributo
 
 /**
  * Invite a new user via email (admin only)
- * Note: This uses Supabase's magic link invite
+ * Uses Supabase Admin API to send proper invitation with password setup
  */
 export async function inviteUser(email: string) {
   const admin = await isAdmin()
@@ -73,14 +75,15 @@ export async function inviteUser(email: string) {
     return { error: 'A user with this email already exists' }
   }
 
-  // Use Supabase Auth to send an invite
-  // Note: For production, you may need to use the admin API via Edge Function
-  // or configure Supabase to allow magic link invites
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
+  // Get origin from headers for redirect URL
+  const headersList = await headers()
+  const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  // Use Admin API to send proper invitation
+  // The redirectTo includes ?next= so callback knows where to send them
+  const supabaseAdmin = createAdminClient()
+  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/auth/set-password`,
   })
 
   if (error) {
