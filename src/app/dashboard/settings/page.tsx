@@ -1,5 +1,5 @@
 import { getTemplatesByType } from '@/lib/actions/templates'
-import { getProfiles } from '@/lib/actions/users'
+import { getUsersWithStatus } from '@/lib/actions/users'
 import { getProfile, isAdmin } from '@/lib/actions/auth'
 import { TaskTemplatesEditor } from '@/components/settings/task-templates-editor'
 import { TeamManagement } from '@/components/settings/team-management'
@@ -7,13 +7,15 @@ import { ClientImport } from '@/components/settings/client-import'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default async function SettingsPage() {
-  const [cycleTemplates, shootTemplates, profiles, currentProfile, userIsAdmin] = await Promise.all([
+  const [cycleTemplates, shootTemplates, usersResult, currentProfile, userIsAdmin] = await Promise.all([
     getTemplatesByType('cycle'),
     getTemplatesByType('shoot'),
-    getProfiles(),
+    getUsersWithStatus(),
     getProfile(),
     isAdmin(),
   ])
+
+  const users = usersResult.data || []
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -23,7 +25,7 @@ export default async function SettingsPage() {
         {/* Team Management Section */}
         <section>
           <TeamManagement
-            profiles={profiles}
+            users={users}
             currentUserId={currentProfile?.id || ''}
             isAdmin={userIsAdmin}
           />
