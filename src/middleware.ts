@@ -46,12 +46,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages to dashboard
-  // Exception: /auth/set-password is allowed for invited users setting their password
+  // Exceptions: /auth/set-password and /auth/callback/* are allowed
   if (
     user &&
     request.nextUrl.pathname.startsWith('/auth') &&
     request.nextUrl.pathname !== '/auth/set-password' &&
-    request.nextUrl.pathname !== '/auth/callback'
+    !request.nextUrl.pathname.startsWith('/auth/callback')
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'

@@ -90,10 +90,10 @@ export async function inviteUser(email: string) {
   const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || ''
 
   // Use Admin API to send proper invitation
-  // The redirectTo includes ?next= so callback knows where to send them
+  // Use dedicated invite callback route (avoids URL encoding issues with query params)
   const supabaseAdmin = createAdminClient()
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/auth/set-password`,
+    redirectTo: `${origin}/auth/callback/invite`,
   })
 
   if (error) {
@@ -235,8 +235,9 @@ export async function resendInvitation(email: string) {
   const supabaseAdmin = createAdminClient()
 
   // Resend the invitation with the correct redirect
+  // Use dedicated invite callback route (avoids URL encoding issues with query params)
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/auth/set-password`,
+    redirectTo: `${origin}/auth/callback/invite`,
   })
 
   if (error) {
