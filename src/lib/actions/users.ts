@@ -109,27 +109,54 @@ export async function inviteUser(email: string) {
  * Merges profiles with auth data server-side to prevent leaking all auth users
  */
 export async function getUsersWithStatus(): Promise<{ data: UserWithStatus[] | null; error: string | null }> {
+  console.log('[getUsersWithStatus] Starting...')
+
+  let supabaseAdmin
+  try {
+    supabaseAdmin = createAdminClient()
+    console.log('[getUsersWithStatus] Admin client created successfully')
+  } catch (error) {
+    console.error('[getUsersWithStatus] Failed to create admin client:', error)
+    return { data: null, error: `Admin client error: ${error instanceof Error ? error.message : 'Unknown error'}` }
+  }
+
   const supabase = await createClient()
-  const supabaseAdmin = createAdminClient()
 
   // 1. Fetch profiles (our "safe list" - only users in this app)
+  console.log('[getUsersWithStatus] Fetching profiles...')
   const { data: profiles, error: profileError } = await supabase
     .from('profiles')
     .select('id, email, role, avatar_url, created_at')
     .order('created_at', { ascending: false })
 
-  if (profileError || !profiles) {
-    return { data: null, error: 'Failed to fetch profiles' }
+  if (profileError) {
+    console.error('[getUsersWithStatus] Profile fetch error:', profileError)
+    return { data: null, error: `Failed to fetch profiles: ${profileError.message}` }
   }
 
+  if (!profiles) {
+    console.log('[getUsersWithStatus] No profiles found')
+    return { data: [], error: null }
+  }
+
+  console.log(`[getUsersWithStatus] Found ${profiles.length} profiles`)
+
   // 2. Fetch auth users (server-side only)
+  console.log('[getUsersWithStatus] Fetching auth users...')
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
     perPage: 1000,
   })
 
   if (authError) {
-    return { data: null, error: 'Failed to verify user statuses' }
+    console.error('[getUsersWithStatus] Auth API error:', {
+      message: authError.message,
+      status: authError.status,
+      name: authError.name,
+    })
+    return { data: null, error: `Auth API error: ${authError.message}` }
   }
+
+  console.log(`[getUsersWithStatus] Found ${authData?.users?.length || 0} auth users`)
 
   // 3. Secure merge - only return users who are in profiles
   const mergedUsers: UserWithStatus[] = profiles.map((profile) => {
